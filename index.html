@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jan Lönnqvist | bol.</title>
+<style>
+@font-face{font-family:'Diatype Variable';src:url('fonts/DiatypeVariable.woff2') format('woff2');font-weight:200 1000;font-display:swap}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --bg:#04061a;
+    --blue:#3366CA;
+    --blue-bright:#5b8ef5;
+    --blue-glow:rgba(51,102,202,.12);
+    --cyan:#4ecdc4;
+    --text:#e8eaf6;
+    --text-60:rgba(232,234,246,.6);
+    --text-30:rgba(232,234,246,.3);
+    --text-15:rgba(232,234,246,.12);
+}
+html{scrollbar-width:none;overflow-x:hidden}
+html::-webkit-scrollbar{display:none}
+body{font-family:'Diatype Variable',-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased;cursor:none}
+::selection{background:var(--blue);color:#fff}
+
+/* CURSOR */
+.cur-dot{width:6px;height:6px;border-radius:50%;background:var(--blue-bright);position:fixed;transform:translate(-50%,-50%);z-index:10000;pointer-events:none;box-shadow:0 0 12px rgba(91,142,245,.5)}
+.cur-ring{width:36px;height:36px;border-radius:50%;border:1px solid rgba(91,142,245,.3);position:fixed;transform:translate(-50%,-50%);z-index:9999;pointer-events:none;transition:width .35s cubic-bezier(.16,1,.3,1),height .35s cubic-bezier(.16,1,.3,1),border-color .3s}
+.cur-ring.hover{width:64px;height:64px;border-color:var(--cyan)}
+
+/* THREE.JS */
+#scene{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+
+/* OVERLAY GRID */
+.grid-overlay{position:fixed;inset:0;z-index:1;pointer-events:none;background-image:linear-gradient(rgba(51,102,202,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(51,102,202,.03) 1px,transparent 1px);background-size:60px 60px}
+
+/* PROGRESS */
+.progress{position:fixed;left:0;top:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--cyan));z-index:200;width:0%;box-shadow:0 0 12px rgba(78,205,196,.3)}
+
+/* NOISE */
+.noise{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.025;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;justify-content:space-between;align-items:center;padding:24px 40px;opacity:0;transform:translateY(-15px);transition:all .8s cubic-bezier(.16,1,.3,1)}
+nav.visible{opacity:1;transform:none}
+nav .brand{font-size:.75rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text-60)}
+nav .brand span{color:var(--blue-bright)}
+nav a{font-size:.55rem;font-weight:500;letter-spacing:.2em;text-transform:uppercase;color:var(--text-30);text-decoration:none;margin-left:24px;transition:color .3s;cursor:none;position:relative}
+nav a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:1px;background:var(--blue-bright);transition:width .3s}
+nav a:hover{color:var(--text)}
+nav a:hover::after{width:100%}
+
+/* SCROLL SPACER */
+#spacer{height:600vh;position:relative;z-index:-1}
+
+/* FIXED CONTENT LAYER */
+.content-layer{position:fixed;inset:0;z-index:10;pointer-events:none;overflow:hidden}
+
+/* HERO */
+.hero-fixed{position:absolute;bottom:10vh;left:6vw;pointer-events:auto;opacity:0;transform:translateY(40px);transition:all 1s cubic-bezier(.16,1,.3,1)}
+.hero-fixed.visible{opacity:1;transform:none}
+.hero-tag{font-size:clamp(.5rem,.6vw,.55rem);font-weight:500;letter-spacing:.4em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:20px}
+.hero-name{font-size:clamp(3.5rem,11vw,10rem);font-weight:900;line-height:.82;letter-spacing:-.05em}
+.hero-name .outline{-webkit-text-stroke:1.5px var(--text);color:transparent}
+.hero-name .blue{color:var(--blue-bright)}
+.hero-role{font-size:clamp(.7rem,1vw,.88rem);font-weight:350;color:var(--text-60);margin-top:20px;letter-spacing:.03em}
+.hero-location{font-size:clamp(.55rem,.7vw,.62rem);letter-spacing:.2em;text-transform:uppercase;color:var(--text-30);margin-top:8px}
+
+/* ZONE PANELS — fixed overlays controlled by scroll */
+.zone{position:absolute;inset:0;display:flex;align-items:center;padding:0 6vw;opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.zone.active{opacity:1;transform:none;pointer-events:auto}
+.zone.left{justify-content:flex-start}
+.zone.right{justify-content:flex-end}
+.zone-inner{max-width:520px}
+.zone-label{font-size:clamp(.5rem,.6vw,.55rem);font-weight:500;letter-spacing:.35em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:16px}
+.zone h2{font-size:clamp(1.8rem,4vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:16px}
+.zone h2 em{font-weight:400;font-style:normal;color:var(--blue-bright)}
+.zone p{font-size:clamp(.8rem,1vw,.9rem);line-height:1.75;color:var(--text-60);font-weight:350}
+.zone p strong{color:var(--text);font-weight:600}
+.zone .stats{display:flex;gap:32px;margin-top:24px}
+.zone .stat-num{font-size:clamp(2rem,3.5vw,2.8rem);font-weight:800;color:var(--blue-bright);letter-spacing:-.03em}
+.zone .stat-label{font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-30);margin-top:4px}
+
+/* SKILLS — floating tags */
+.zone .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.zone .tag{font-size:clamp(.55rem,.65vw,.6rem);font-weight:450;letter-spacing:.1em;text-transform:uppercase;color:var(--text-60);padding:6px 16px;border:1px solid var(--text-15);border-radius:2px;transition:all .3s}
+.zone .tag:hover{border-color:var(--blue-bright);color:var(--blue-bright);box-shadow:0 0 12px var(--blue-glow)}
+
+/* CTA ZONE */
+.zone-cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;opacity:0;transform:scale(.95);transition:all .8s cubic-bezier(.16,1,.3,1);pointer-events:none}
+.zone-cta.active{opacity:1;transform:none;pointer-events:auto}
+.cta-title{font-size:clamp(4rem,12vw,10rem);font-weight:900;line-height:.82;letter-spacing:-.05em}
+.cta-title .outline{-webkit-text-stroke:1.5px var(--text);color:transparent}
+.cta-title .blue{-webkit-text-stroke:1.5px var(--blue-bright);color:transparent}
+.cta-sub{font-size:clamp(.75rem,.9vw,.85rem);color:var(--text-30);margin-top:24px;line-height:1.7}
+.cta-links{margin-top:24px;display:flex;gap:12px;flex-wrap:wrap}
+.cta-links a{font-size:clamp(.55rem,.65vw,.6rem);text-decoration:none;cursor:none;padding:12px 28px;letter-spacing:.15em;text-transform:uppercase;font-weight:500;transition:all .4s cubic-bezier(.16,1,.3,1)}
+.cta-links a.primary{background:var(--blue);color:#fff;border:1px solid var(--blue)}
+.cta-links a.primary:hover{background:var(--blue-bright);border-color:var(--blue-bright);box-shadow:0 0 30px var(--blue-glow)}
+.cta-links a.secondary{color:var(--text);border:1px solid var(--text-15)}
+.cta-links a.secondary:hover{border-color:var(--blue-bright);color:var(--blue-bright)}
+
+/* SCROLL HINT */
+.scroll-hint{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:50;opacity:0;transition:opacity .6s}
+.scroll-hint.visible{opacity:1}
+.scroll-hint span{font-size:.5rem;letter-spacing:.25em;text-transform:uppercase;color:var(--text-30)}
+.scroll-hint .bar{width:1px;height:32px;margin:8px auto 0;background:linear-gradient(to bottom,var(--blue-bright),transparent);animation:hintPulse 2s ease-in-out infinite}
+@keyframes hintPulse{0%,100%{opacity:.3;transform:scaleY(.5)}50%{opacity:1;transform:scaleY(1)}}
+
+/* ZONE MARKER */
+.zone-marker{position:fixed;right:36px;bottom:36px;z-index:50;font-size:.5rem;letter-spacing:.2em;text-transform:uppercase;color:var(--text-30)}
+.zone-marker .num{color:var(--blue-bright);margin-right:6px}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+    body{cursor:auto}
+    .cur-dot,.cur-ring{display:none}
+    nav{padding:14px 18px}
+    .hero-fixed{left:5vw;bottom:8vh}
+    .zone{padding:0 5vw}
+    .zone.right{justify-content:flex-start}
+    .zone .stats{flex-wrap:wrap;gap:20px}
+    .zone-cta{padding:0 5vw}
+    .grid-overlay{background-size:40px 40px}
+    .zone-marker{right:16px;bottom:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="cur-dot" id="curDot"></div>
+<div class="cur-ring" id="curRing"></div>
+<canvas id="scene"></canvas>
+<div class="grid-overlay"></div>
+<div class="noise"></div>
+<div class="progress" id="progress"></div>
+
+<nav id="nav">
+    <div class="brand">Jan Lönnqvist <span>x</span> bol<span>.</span></div>
+    <div>
+        <a href="#" onclick="goZone(2);return false">Experience</a>
+        <a href="#" onclick="goZone(4);return false">Why bol.</a>
+        <a href="#" onclick="goZone(5);return false">Connect</a>
+    </div>
+</nav>
+
+<div class="scroll-hint" id="scrollHint"><span>Scroll</span><div class="bar"></div></div>
+<div class="zone-marker"><span class="num" id="zNum">01</span><span id="zLabel">ENTER</span></div>
+
+<div class="content-layer" id="contentLayer">
+    <!-- HERO -->
+    <div class="hero-fixed" id="heroBlock">
+        <div class="hero-tag">Campagne Specialist Advertising</div>
+        <h1 class="hero-name">JAN<br><span class="outline">LÖNN</span><span class="blue">QVIST</span></h1>
+        <div class="hero-role">Data-driven campaigns across 40+ countries at scale</div>
+        <div class="hero-location">Amsterdam &rarr; Utrecht</div>
+    </div>
+
+    <!-- ZONE 1: Statement -->
+    <div class="zone left" id="z1">
+        <div class="zone-inner">
+            <div class="zone-label">The Pitch</div>
+            <h2>Campaigns that <em>convert</em></h2>
+            <p>12 years building campaigns that drive measurable results — from <strong>DHL's 20% lead conversion in month one</strong> to Rituals' highest-selling product campaign ever. I understand how creative becomes commercial.</p>
+            <div class="stats">
+                <div><div class="stat-num">12+</div><div class="stat-label">Years</div></div>
+                <div><div class="stat-num">40+</div><div class="stat-label">Countries</div></div>
+                <div><div class="stat-num">20%</div><div class="stat-label">DHL leads M1</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ZONE 2: Campaign experience -->
+    <div class="zone right" id="z2">
+        <div class="zone-inner">
+            <div class="zone-label">Campaign Experience</div>
+            <h2>Multi-market <em>at scale</em></h2>
+            <p><strong>DHL</strong> — Campaigns across 12+ markets and 26 locations. Data-informed creative decisions driving 20% of targeted leads in month one.</p>
+            <p style="margin-top:12px"><strong>HelloFresh</strong> — Led a team of three for campaign production across BENELUX and France. High-volume, performance-driven output.</p>
+            <p style="margin-top:12px"><strong>GLS Group</strong> — EMEA campaigns across 40+ countries. Building systems that scale while maintaining brand consistency.</p>
+        </div>
+    </div>
+
+    <!-- ZONE 3: Retail & brand -->
+    <div class="zone left" id="z3">
+        <div class="zone-inner">
+            <div class="zone-label">Retail & Brand</div>
+            <h2>From brand <em>to shelf</em></h2>
+            <p><strong>Rituals</strong> — Campaign design for Hammam, Legend of the Dragon, Christmas Advent. Packaging, in-store, digital. <strong>Highest sales in product history.</strong></p>
+            <p style="margin-top:12px"><strong>IKEA</strong> — Sustainability campaign that drove action. <strong>Filling Pieces</strong> — Premium fashion brand lookbook and art direction.</p>
+            <p style="margin-top:12px">I know how campaigns perform in-store, online, and across media touchpoints — the full funnel bol Retail Media advises on.</p>
+        </div>
+    </div>
+
+    <!-- ZONE 4: Why bol -->
+    <div class="zone right" id="z4">
+        <div class="zone-inner">
+            <div class="zone-label">Why bol.</div>
+            <h2>Data meets <em>creative</em></h2>
+            <p>This role asks for someone who can <strong>translate data into actionable campaign strategy</strong>. My background is unique — I've both <strong>built the campaigns and analyzed what works</strong> across markets, channels, and audiences.</p>
+            <p style="margin-top:12px">I bring production expertise that means I understand what makes a Sponsored Product listing, a branded shelf, or a display ad actually perform. Based in Amsterdam — <strong>Utrecht is 25 minutes away.</strong></p>
+            <div class="tags">
+                <span class="tag">Retail Media</span>
+                <span class="tag">Data Analysis</span>
+                <span class="tag">Campaign Strategy</span>
+                <span class="tag">Consultative Selling</span>
+                <span class="tag">Multi-Market</span>
+                <span class="tag">Performance</span>
+                <span class="tag">Digital Advertising</span>
+                <span class="tag">ROI Optimization</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="zone-cta" id="z5">
+        <h2 class="cta-title"><span class="outline">LET'S</span><br><span class="blue">TALK</span></h2>
+        <p class="cta-sub">jan.lonnqvist@windowslive.com<br>+31 619 584 748</p>
+        <div class="cta-links">
+            <a href="mailto:jan.lonnqvist@windowslive.com" class="primary">Email me</a>
+            <a href="tel:+31619584748" class="secondary">Call</a>
+        </div>
+    </div>
+</div>
+
+<div id="spacer"></div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const M = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+const canvas = document.getElementById('scene');
+const R = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+R.setSize(innerWidth, innerHeight);
+R.setPixelRatio(Math.min(devicePixelRatio, 2));
+R.setClearColor(0x04061a, 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x04061a, .0025);
+const cam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .1, 500);
+cam.position.set(0, 0, 30);
+
+// Post-processing
+const comp = new EffectComposer(R);
+comp.addPass(new RenderPass(scene, cam));
+if (!M) {
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .4, .6, .85);
+    comp.addPass(bloom);
+}
+
+// === PARTICLE CONSTELLATION ===
+const PC = M ? 300 : 1200;
+const geo = new THREE.BufferGeometry();
+const pos = new Float32Array(PC * 3);
+const col = new Float32Array(PC * 3);
+const sizes = new Float32Array(PC);
+const velocities = [];
+const blue = new THREE.Color(0x3366CA);
+const cyan = new THREE.Color(0x4ecdc4);
+const white = new THREE.Color(0xe8eaf6);
+
+for (let i = 0; i < PC; i++) {
+    pos[i * 3] = (Math.random() - .5) * 80;
+    pos[i * 3 + 1] = (Math.random() - .5) * 60;
+    pos[i * 3 + 2] = (Math.random() - .5) * 60;
+    const c = Math.random() < .3 ? cyan : Math.random() < .5 ? blue : white;
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    sizes[i] = .02 + Math.random() * .06;
+    velocities.push({
+        x: (Math.random() - .5) * .008,
+        y: (Math.random() - .5) * .006,
+        z: (Math.random() - .5) * .005
+    });
+}
+geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+const pMat = new THREE.PointsMaterial({
+    size: M ? .12 : .08, transparent: true, opacity: .7,
+    vertexColors: true, sizeAttenuation: true,
+    blending: THREE.AdditiveBlending, depthWrite: false
+});
+scene.add(new THREE.Points(geo, pMat));
+
+// === CONNECTION LINES ===
+const lineMat = new THREE.LineBasicMaterial({
+    color: 0x3366CA, transparent: true, opacity: .06,
+    blending: THREE.AdditiveBlending, depthWrite: false
+});
+const lineGeo = new THREE.BufferGeometry();
+const maxLines = M ? 200 : 800;
+const linePos = new Float32Array(maxLines * 6);
+lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+const lines = new THREE.LineSegments(lineGeo, lineMat);
+scene.add(lines);
+
+// === FLOATING DATA RINGS ===
+const rings = [];
+for (let i = 0; i < (M ? 3 : 8); i++) {
+    const r = 2 + Math.random() * 5;
+    const ringGeo = new THREE.TorusGeometry(r, .015, 8, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0x3366CA : 0x4ecdc4,
+        transparent: true, opacity: .08
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set((Math.random() - .5) * 30, (Math.random() - .5) * 20, (Math.random() - .5) * 20 - 10);
+    ring.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    ring.userData = { rSpeed: .001 + Math.random() * .003, axis: Math.random() < .5 ? 'x' : 'y' };
+    scene.add(ring);
+    rings.push(ring);
+}
+
+// === GLOWING ORBS ===
+function makeOrb(c, x, y, z, s) {
+    const orbGeo = new THREE.SphereGeometry(s, 16, 16);
+    const orbMat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .15 });
+    const orb = new THREE.Mesh(orbGeo, orbMat);
+    orb.position.set(x, y, z);
+    scene.add(orb);
+    return orb;
+}
+const orb1 = makeOrb(0x3366CA, -20, 10, -30, 4);
+const orb2 = makeOrb(0x4ecdc4, 25, -8, -25, 3);
+const orb3 = makeOrb(0x3366CA, 0, -15, -40, 5);
+
+// === SCROLL STATE ===
+let scrollP = 0, smoothScroll = 0, scrollV = 0, lastSY = 0;
+let mouseX = 0, mouseY = 0;
+
+addEventListener('scroll', () => {
+    const d = document.documentElement.scrollHeight - innerHeight;
+    scrollP = d > 0 ? scrollY / d : 0;
+    scrollV = (scrollY - lastSY) * .005;
+    lastSY = scrollY;
+    document.getElementById('progress').style.width = (scrollP * 100) + '%';
+    document.getElementById('scrollHint').classList.toggle('visible', scrollP < .03);
+}, { passive: true });
+
+if (!M) {
+    document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+}
+
+// === CURSOR ===
+const dot = document.getElementById('curDot');
+const ring = document.getElementById('curRing');
+let dx = -100, dy = -100, rx = -100, ry = -100;
+if (!M) {
+    document.querySelectorAll('a, .tag').forEach(el => {
+        el.addEventListener('mouseenter', () => ring.classList.add('hover'));
+        el.addEventListener('mouseleave', () => ring.classList.remove('hover'));
+    });
+}
+
+// === ZONES ===
+const zones = [
+    { id: 'hero', label: 'ENTER', s: 0, e: .15 },
+    { id: 'z1', label: 'PITCH', s: .15, e: .32 },
+    { id: 'z2', label: 'CAMPAIGNS', s: .32, e: .50 },
+    { id: 'z3', label: 'RETAIL', s: .50, e: .67 },
+    { id: 'z4', label: 'WHY BOL.', s: .67, e: .82 },
+    { id: 'z5', label: 'CONNECT', s: .82, e: 1 },
+];
+
+const heroBlock = document.getElementById('heroBlock');
+const zoneEls = zones.slice(1).map(z => document.getElementById(z.id));
+const zNum = document.getElementById('zNum');
+const zLabel = document.getElementById('zLabel');
+
+function updateZones() {
+    let cur = zones[0];
+    for (const z of zones) if (scrollP >= z.s && scrollP < z.e) { cur = z; break; }
+    if (scrollP >= zones[5].s) cur = zones[5];
+
+    heroBlock.classList.toggle('visible', cur.id === 'hero');
+    zoneEls.forEach((el, i) => {
+        const z = zones[i + 1];
+        el.classList.toggle('active', cur.id === z.id);
+    });
+
+    const idx = zones.indexOf(cur) + 1;
+    zNum.textContent = String(idx).padStart(2, '0');
+    zLabel.textContent = cur.label;
+}
+
+window.goZone = function(i) {
+    const t = zones[i] ? zones[i].s : 0;
+    const d = document.documentElement.scrollHeight - innerHeight;
+    scrollTo({ top: t * d, behavior: 'smooth' });
+};
+
+// === RESIZE ===
+addEventListener('resize', () => {
+    cam.aspect = innerWidth / innerHeight;
+    cam.updateProjectionMatrix();
+    R.setSize(innerWidth, innerHeight);
+    comp.setSize(innerWidth, innerHeight);
+});
+
+// === LOADER ===
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        document.getElementById('nav').classList.add('visible');
+        heroBlock.classList.add('visible');
+        document.getElementById('scrollHint').classList.add('visible');
+    }, 300);
+});
+
+// === ANIMATE ===
+const clock = new THREE.Clock();
+function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+    const dt = clock.getDelta();
+
+    smoothScroll += (scrollP - smoothScroll) * .05;
+    scrollV *= .92;
+
+    // Mouse parallax
+    const mx = M ? 0 : (mouseX / innerWidth - .5) * 2;
+    const my = M ? 0 : (mouseY / innerHeight - .5) * 2;
+
+    // Camera movement based on scroll
+    const camZ = 30 - smoothScroll * 25;
+    const camX = Math.sin(smoothScroll * Math.PI * 3) * 8 + mx * 3;
+    const camY = Math.cos(smoothScroll * Math.PI * 2) * 4 + my * -1.5;
+    cam.position.x += (camX - cam.position.x) * .03;
+    cam.position.y += (camY - cam.position.y) * .03;
+    cam.position.z += (camZ - cam.position.z) * .03;
+    cam.lookAt(mx * .5, my * -.3, -10);
+
+    // Particles
+    const pa = geo.attributes.position.array;
+    for (let i = 0; i < PC; i++) {
+        const v = velocities[i];
+        pa[i * 3] += v.x;
+        pa[i * 3 + 1] += v.y;
+        pa[i * 3 + 2] += v.z;
+        // Gentle orbit
+        pa[i * 3] += Math.sin(t * .1 + i) * .002;
+        pa[i * 3 + 1] += Math.cos(t * .08 + i * .5) * .001;
+        // Boundaries
+        if (Math.abs(pa[i * 3]) > 45) v.x *= -1;
+        if (Math.abs(pa[i * 3 + 1]) > 35) v.y *= -1;
+        if (Math.abs(pa[i * 3 + 2]) > 35) v.z *= -1;
+    }
+    geo.attributes.position.needsUpdate = true;
+
+    // Connection lines
+    let lc = 0;
+    const lp = lineGeo.attributes.position.array;
+    const threshold = M ? 4 : 3.5;
+    for (let i = 0; i < PC && lc < maxLines; i += (M ? 4 : 2)) {
+        for (let j = i + 1; j < PC && lc < maxLines; j += (M ? 4 : 2)) {
+            const adx = pa[i * 3] - pa[j * 3];
+            const ady = pa[i * 3 + 1] - pa[j * 3 + 1];
+            const adz = pa[i * 3 + 2] - pa[j * 3 + 2];
+            const dist = adx * adx + ady * ady + adz * adz;
+            if (dist < threshold * threshold) {
+                lp[lc * 6] = pa[i * 3]; lp[lc * 6 + 1] = pa[i * 3 + 1]; lp[lc * 6 + 2] = pa[i * 3 + 2];
+                lp[lc * 6 + 3] = pa[j * 3]; lp[lc * 6 + 4] = pa[j * 3 + 1]; lp[lc * 6 + 5] = pa[j * 3 + 2];
+                lc++;
+            }
+        }
+    }
+    for (let i = lc * 6; i < maxLines * 6; i++) lp[i] = 0;
+    lineGeo.attributes.position.needsUpdate = true;
+    lineGeo.setDrawRange(0, lc * 2);
+
+    // Rings
+    rings.forEach(r => {
+        r.rotation[r.userData.axis] += r.userData.rSpeed;
+        r.position.y += Math.sin(t * .3 + r.position.x) * .003;
+    });
+
+    // Orbs
+    orb1.position.x = -20 + Math.sin(t * .15) * 3;
+    orb1.position.y = 10 + Math.cos(t * .12) * 2;
+    orb2.position.x = 25 + Math.cos(t * .13) * 2;
+    orb2.position.y = -8 + Math.sin(t * .17) * 3;
+    orb3.position.y = -15 + Math.sin(t * .1) * 2;
+
+    // Fog color shift
+    const fogPhase = smoothScroll;
+    const fogColor = new THREE.Color().lerpColors(
+        new THREE.Color(0x04061a),
+        new THREE.Color(0x061028),
+        fogPhase
+    );
+    scene.fog.color.lerp(fogColor, .02);
+    R.setClearColor(scene.fog.color, 1);
+
+    // Cursor
+    if (!M) {
+        dx += (mouseX - dx) * .2;
+        dy += (mouseY - dy) * .2;
+        rx += (mouseX - rx) * .07;
+        ry += (mouseY - ry) * .07;
+        dot.style.left = dx + 'px'; dot.style.top = dy + 'px';
+        ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+    }
+
+    updateZones();
+    comp.render();
+}
+animate();
+
+// === PROTECTION ===
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => {
+    if (e.key === 'F12') e.preventDefault();
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) e.preventDefault();
+    if ((e.ctrlKey || e.metaKey) && ['u','U','s','S'].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('dragstart', e => e.preventDefault());
+document.addEventListener('selectstart', e => {
+    if (e.target.closest && (e.target.closest('a') || e.target.closest('input'))) return;
+    e.preventDefault();
+});
+</script>
+</body>
+</html>
